@@ -209,7 +209,7 @@ for (( chapter_index=0; chapter_index<${#chapters[@]}; chapter_index++ )); do
     printf '\nMerging Chapter %s (%s fragments)...\n' "$chapter" "$((chapter_starts[chapter_index+1] - chapter_starts[chapter_index]))"
     manifest_path=$(media_path "$work_dir/concat") || die 'Cannot convert manifest path for FFmpeg.'
     staged_path=$(media_path "$stage_dir/chapter.mp3") || die 'Cannot convert output path for FFmpeg.'
-    ffmpeg -nostdin -hide_banner -loglevel error \
+    ffmpeg -nostdin -hide_banner -loglevel error -xerror \
         -fflags +genpts -f concat -safe 0 -i "$manifest_path" \
         -map 0:a:0 -vn -c:a libmp3lame -b:a 192k -af aresample=async=1 \
         -y "$staged_path" &

@@ -270,6 +270,28 @@ class MergeTests(unittest.TestCase):
         self.assertIn("Chapter 0 ->", result.stdout)
         self.assertIn("Chapter 999999999999999999999999 ->", result.stdout)
 
+    def test_real_corrupt_later_fragment_preserves_previous_chapter(self):
+        ffmpeg = shutil.which("ffmpeg")
+        if not ffmpeg:
+            self.skipTest("FFmpeg required for real corrupt-fragment check")
+        (self.shims / "ffmpeg").unlink()
+        for track in (1, 3):
+            source = self.fragment(f"{track} Chapter 1.mp3")
+            subprocess.run([ffmpeg, "-v", "error", "-f", "lavfi", "-i",
+                            "sine=frequency=440:duration=0.5", "-c:a", "libmp3lame",
+                            "-y", str(source)], check=True, capture_output=True, timeout=30)
+        bad = self.fragment("2 Chapter 1.mp3", b"synthetic unreadable fragment")
+        output = self.output()
+        result = self.invoke("--overwrite", expected=1)
+        self.assertIn("FFmpeg failed", result.stderr)
+        self.assertEqual(output.read_bytes(), b"previous")
+        self.assertEqual(bad.read_bytes(), b"synthetic unreadable fragment")
+        self.assert_clean()
+        bad.write_bytes((self.book / "1 Chapter 1.mp3").read_bytes())
+        self.invoke("--overwrite")
+        self.assertGreater(output.stat().st_size, len(b"previous"))
+        self.assert_clean()
+
     def test_real_audio_order_duration_and_source_preservation(self):
         ffmpeg = shutil.which("ffmpeg")
         ffprobe = shutil.which("ffprobe")
